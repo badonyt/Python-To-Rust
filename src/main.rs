@@ -117,15 +117,26 @@ fn main() {
         println!("GENERIC --HELP MESSAGE");
         std::process::exit(1);
     }
-    let mut final_file = Vec::new();
+    let mut final_file: Vec<String> = Vec::new();
+    let mut functions: HashMap<usize, usize> = HashMap::new();
     let file_path = &args[1];
     let lines = read_file_lines(file_path);
     let mut i = 0;
+    //final_file.push("fn main(){".to_string());
     //usize check
     let mut vars:HashMap<String, usize> = HashMap::new();
     //UNCLOSED
     let mut unclosed_if = 0;
     for line in lines.clone() {
+        let mut frick = false;
+        for (_key, value) in functions.iter() {
+            if (*_key <= i && i <= *value) && i != *value {
+                println!("{} is between {} and {}", i, _key, value);
+                frick = true;
+            }
+        }
+        if frick == true{i+=1;continue;}
+
         let mut notif: bool = false;
         println!("{}", count_leading_spaces(&line));
         //check var
@@ -144,11 +155,7 @@ fn main() {
                 final_file.push(format!("let {} = {}",v[0],&v[1]));
                 vars.insert(v[0].trim().to_owned(),i.try_into().unwrap(),);
             }
-            
-           
-
-            
-            
+          
         }else if check_if_or_def(&line) == "if"{
             notif = true;
             unclosed_if += 1;
@@ -157,18 +164,35 @@ fn main() {
             final_file.push(format!("{}{}", replace_all_occurrences(&*damn, "and", "&&") , '{'));
         }else if check_if_or_def(&line) == "def"{
             //unclosed_if +=1;
-            
-            let damn: &str = first_part_without_char(&line, ':');
-            final_file.push(format!("{}{}", &damn , '{'));
+           // notif = true;
+           let mut y = 1; 
+           for line in lines[i..].to_vec(){
+                //SEE
+                if (y + i) == lines.len(){functions.insert(i,i+y);break;}
+                if count_leading_spaces(&lines[i + y]) == 0{
+
+                    functions.insert(i,i+y);
+                    
+                    break;
+                    
+                }
+                println!("{}",&lines[i + y]);
+                y +=1;
+                
+            }
+            //let damn: &str = first_part_without_char(&line, ':');
+            //final_file.push(format!("{}{}", &damn , '{'));
         }else if remove_first_char_from_str(&line, ' ').split("(").next() == Some("print"){
             let mut parts = remove_first_char_from_str(&line, ' ').split("(");
             println!("dan");
             final_file.push(format!("println!({}",parts.nth(1).unwrap()));
+        }else if line.clone().trim_start().starts_with("#"){
+            final_file.push(format!("//{}", &line.trim_start()[1..]))
         }
         
         
        
-        if i != 0 {
+        if i != 0 && &lines.len()<&(i+1){
             //print_type_of(
               //  &i);
             let yy = i - 1;
@@ -185,10 +209,72 @@ fn main() {
         }
         i +=1;
     }
+    final_file.insert(0,"fn main(){".to_string());
+    
     let mut y =0 ;
     while y <unclosed_if{
         final_file.push(format!("{}", "}")); 
         y+=1
+    }
+    final_file.push("}".to_string());
+    for (_key, value) in functions.iter() {
+        let mut z = _key.clone();
+
+        let mut unclosed_if = 0;
+        while z < value.clone(){
+            let mut notif = false;
+            println!("{}",lines[z]);
+            if check_if_or_def(&lines[z]) == "def"{
+               let v: Vec<&str> = lines[z].split(' ').collect();
+               final_file.push(format!("fn {}{}", replace_all_occurrences(&v[1], ":", ""), "{"));
+            }else if check_if_or_def(&lines[z]) == "if"{
+                notif = true;
+                unclosed_if += 1;
+                let damn: &str = first_part_without_char(&lines[z], ':');
+                let damn: Box<str> = replace_all_occurrences(&damn, "or", "||").into();
+                final_file.push(format!("{}{}", replace_all_occurrences(&*damn, "and", "&&") , '{'));
+            }else if check_var(&lines[z]) == true{
+                println!("var incoming");
+                let v: Vec<&str> = lines[z].split('=').collect();
+                println!("{:?}", vars);
+                
+                if vars.contains_key(v[0].trim()) { 
+                    println!("VAR but new");
+                    final_file.push(format!("{} = {}",v[0],&v[1]));
+                    let vs: Vec<&str> = lines[vars[v[0].trim()]].split('=').collect();
+                    //print_type_of(vars[&i]);
+                    final_file[vars[v[0].trim()]] = format!("let mut {} ={}",v[0], vs[1])
+                } else {
+                    final_file.push(format!("let {} = {}",v[0],&v[1]));
+                    vars.insert(v[0].trim().to_owned(),i.try_into().unwrap(),);
+                }
+              
+            }else if remove_first_char_from_str(&lines[z], ' ').split("(").next() == Some("print"){
+                let mut parts = remove_first_char_from_str(&lines[z], ' ').split("(");
+                println!("dan");
+                final_file.push(format!("println!({}",parts.nth(1).unwrap()));
+            }else if lines[z].clone().trim_start().starts_with("#"){
+                final_file.push(format!("//{}", &lines[z].trim_start()[1..]))
+            }
+            z+=1;
+            if z != 0 && &value<&&(z+1){
+                //print_type_of(
+                  //  &i);
+                let yy = z - 1;
+                if count_leading_spaces(&lines[z]) == 1  && count_leading_spaces(&lines[yy])>count_leading_spaces(&lines[z]){
+                
+                    final_file.insert(i,format!("{}", "}"));   
+                    unclosed_if -=1;
+                } 
+
+            }
+        }
+        let mut y =0 ;
+        while y <unclosed_if{
+            final_file.push(format!("{}", "}")); 
+            y+=1
+        }
+        final_file.push(format!("{}", "}"));
     }
     println!("{:?}", vars);
     println!("{:?}", final_file);

@@ -1,5 +1,5 @@
 [package]
-name = "PythonToRust"
+name = "pythontorust"
 description = "You need to have a decent knowledge of both languages to use this program"
 version = "0.1.0"
 edition = "2021"
